@@ -16,16 +16,90 @@
 		DataBind.prototype._init = function(options){
 			this.$el = options.el;
 			this.$data = options.data;
-			this.methods = options.methods;
-
+			this.$methods = options.methods;
+			this._blinding = {};
 			this._parseData();
 			this._parseFun();
 		};
-		DataBind.prototype._parseData = function(){
+		DataBind.prototype._compile = function(){
+			var node = this.$el,
+				_this = this;
+			for(var i=0;i<node.children.length;i++){
+				if(node[i].children.length){
+					this._compile(node[i]);
+				}
+				if(node[i].hasAttribute('v-click')){
+					var handler = node[i].getAttribute('v-click');
+					var agrs = /\((.*)\)/.exec(handler);
+					if(this.$methods.hasOwnProperty(handler)){
+						if(agrs){
+							agrs = agrs[1].split(',');
+							handler = handler.replace('/\(.*\)/','');
+						}else{
+							agrs = [];
+						}
+						node[i].onclick = this.$methods[handler];
+					}
+				}
 
+				if(node[i].hasAttribute('v-model') && (node[i].tagName == 'INPUT' || node[i].tagName == 'TEXTAREA')){
+					var model = node[i].getAttribute('v-model');
+					if(this.$data.hasOwnProperty(model)){
+						node[i].onput = function(){
+							this.$data[model] = node[i].value;
+						};
+					}
+				}
+
+				if(node[i].hasAttribute('v-bind')){
+
+				}
+			}
+		};
+		function Directive(name,el,vm,exp,attr){
+			this.name = name;
+			this.el = el;
+			this.vm =  vm;
+			this.exp = exp;
+			this.attr = attr;
+			this.update();
+		}
+		Directive.prototype.update = function(){
+			this.el[this.attr] = this.vm.$data[this.exp];
+		};
+		DataBind.prototype._parseData = function(){
+			for(var key in this.$data){
+				if(this.$data.hasOwnProperty(key)){
+					var val = this.$data[key];
+					if(typeof val === 'object'){
+						this._parseData(val);
+					}
+					this._convert(key,val);
+				}
+			}
 		};
 		DataBind.prototype._parseFun = function(){
-			
+			var _this = this;
+			for(var fun in this.$methods){
+				this.$methods[fun] = (function(fun){
+					return function(){
+						_this.$methods[fun].apply(_this.$data);
+					}
+				})(fun);
+			}
+		};
+		DataBind.prototype._convert = function(key,val){
+			Obeject.defineProperty(this.$data,key,{
+				enumerable:true,
+				configurable:true,
+				get:function(){
+					console.log(`{$key}的值被读取`);
+					return val;
+				},
+				set:function(newVal){
+					console.log(`{$key}的值已经改为{$newVal}`);
+				}
+			});
 		};
 	</script>
 </body>
