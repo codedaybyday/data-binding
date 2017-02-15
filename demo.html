@@ -14,45 +14,62 @@
 			this._init(options);
 		}
 		DataBind.prototype._init = function(options){
-			this.$el = options.el;
+			this.$el = document.querySelector(options.el);
 			this.$data = options.data;
 			this.$methods = options.methods;
 			this._blinding = {};
 			this._parseData();
 			this._parseFun();
+			this._compile(this.$el);
 		};
-		DataBind.prototype._compile = function(){
-			var node = this.$el,
+		DataBind.prototype._compile = function(root){
+			var node = root,
 				_this = this;
 			for(var i=0;i<node.children.length;i++){
-				if(node[i].children.length){
-					this._compile(node[i]);
+				var cnode = node.children[i];
+				if(cnode.children.length){
+					this._compile(cnode);
 				}
-				if(node[i].hasAttribute('v-click')){
-					var handler = node[i].getAttribute('v-click');
+				if(cnode.hasAttribute('v-click')){
+					var handler = cnode.getAttribute('v-click');
 					var agrs = /\((.*)\)/.exec(handler);
 					if(this.$methods.hasOwnProperty(handler)){
 						if(agrs){
 							agrs = agrs[1].split(',');
-							handler = handler.replace('/\(.*\)/','');
+							handler = handler.replace('/\(.*\)/','');  
 						}else{
 							agrs = [];
 						}
-						node[i].onclick = this.$methods[handler];
+						cnode.onclick = this.$methods[handler];
 					}
 				}
 
-				if(node[i].hasAttribute('v-model') && (node[i].tagName == 'INPUT' || node[i].tagName == 'TEXTAREA')){
-					var model = node[i].getAttribute('v-model');
+				if(cnode.hasAttribute('v-model') && (cnode.tagName == 'INPUT' || cnode.tagName == 'TEXTAREA')){
+					var model = cnode.getAttribute('v-model');
 					if(this.$data.hasOwnProperty(model)){
-						node[i].onput = function(){
-							this.$data[model] = node[i].value;
-						};
+						cnode.oninput = (function(cnode){
+							return function(){
+								console.log('oninput:'+cnode.value,cnode)
+								_this.$data[model] = cnode.value;
+							};
+						})(cnode);
 					}
 				}
 
-				if(node[i].hasAttribute('v-bind')){
-
+				if(cnode.hasAttribute('v-bind')){
+					var bind = cnode.getAttribute('v-bind');
+					this._blinding[bind] = {};
+					this._blinding[bind]._directives = [];
+					if(this.$data.hasOwnProperty(bind)){
+						this._blinding[bind]._directives.push(new Directive(
+							'text',
+							cnode,
+							this,
+							bind,
+							'innerHTML'
+						));
+					}
+					
 				}
 			}
 		};
@@ -65,6 +82,7 @@
 			this.update();
 		}
 		Directive.prototype.update = function(){
+			console.log('update',this.el,this.attr,this.vm.$data,this.exp);
 			this.el[this.attr] = this.vm.$data[this.exp];
 		};
 		DataBind.prototype._parseData = function(){
@@ -89,18 +107,32 @@
 			}
 		};
 		DataBind.prototype._convert = function(key,val){
-			Obeject.defineProperty(this.$data,key,{
+			var _this = this;
+			Object.defineProperty(this.$data,key,{
 				enumerable:true,
 				configurable:true,
 				get:function(){
-					console.log(`{$key}的值被读取`);
+					console.log(`${key}的值被读取`,val);
 					return val;
 				},
 				set:function(newVal){
-					console.log(`{$key}的值已经改为{$newVal}`);
+					console.log(`${key}的值已经改为${newVal}`);
+					if(newVal !== val){
+						//console.log(_this._blinding);
+						for(var dir in _this._blinding[key]._directives){
+							console.log(_this._blinding[key]._directives[dir])
+							_this._blinding[key]._directives[dir].update();
+						}
+					}
 				}
 			});
 		};
+		new DataBind({
+			el:'#app',
+			data:{
+				name:''
+			}
+		});
 	</script>
 </body>
 </html>
