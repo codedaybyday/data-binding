@@ -18,7 +18,7 @@
 			this.$data = options.data;
 			this.$methods = options.methods;
 			this._blinding = {};
-			this._parseData();
+			this._parseData(this.$data);
 			this._parseFun();
 			this._compile(this.$el);
 		};
@@ -82,13 +82,13 @@
 			this.update();
 		}
 		Directive.prototype.update = function(){
-			console.log('update',this.el,this.attr,this.vm.$data,this.exp);
+			console.log('update',this.el,this.attr,this.vm.$data);
 			this.el[this.attr] = this.vm.$data[this.exp];
 		};
-		DataBind.prototype._parseData = function(){
-			for(var key in this.$data){
-				if(this.$data.hasOwnProperty(key)){
-					var val = this.$data[key];
+		DataBind.prototype._parseData = function(data){
+			for(var key in data){
+				if(data.hasOwnProperty(key)){
+					var val = data[key];
 					if(typeof val === 'object'){
 						this._parseData(val);
 					}
@@ -119,6 +119,7 @@
 					console.log(`${key}的值已经改为${newVal}`);
 					if(newVal !== val){
 						//console.log(_this._blinding);
+						val = newVal;
 						for(var dir in _this._blinding[key]._directives){
 							console.log(_this._blinding[key]._directives[dir])
 							_this._blinding[key]._directives[dir].update();
