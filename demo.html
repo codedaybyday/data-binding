@@ -8,130 +8,138 @@
 	<div id="app">
 		<input type="text" v-model="name"/>
 		<p v-bind="name"></p>
+		<button v-click="handleClick">点击</button>
 	</div>
 	<script>
-		function DataBind(options){
-			this._init(options);
+		class DataBind{
+			constructor(options){
+				this.$el = document.querySelector(options.el);
+				this.$data = options.data;
+				this.$methods = options.methods;
+				this._blinding = {};
+				this.parseData(this.$data);
+				this.parseFun();
+				this.compile(this.$el);
+			}
 		}
-		DataBind.prototype._init = function(options){
-			this.$el = document.querySelector(options.el);
-			this.$data = options.data;
-			this.$methods = options.methods;
-			this._blinding = {};
-			this._parseData(this.$data);
-			this._parseFun();
-			this._compile(this.$el);
-		};
-		DataBind.prototype._compile = function(root){
-			var node = root,
+		Object.assign(DataBind.prototype,{
+			compile(root){
+				var node = root,
 				_this = this;
-			for(var i=0;i<node.children.length;i++){
-				var cnode = node.children[i];
-				if(cnode.children.length){
-					this._compile(cnode);
-				}
-				if(cnode.hasAttribute('v-click')){
-					var handler = cnode.getAttribute('v-click');
-					var agrs = /\((.*)\)/.exec(handler);
-					if(this.$methods.hasOwnProperty(handler)){
-						if(agrs){
-							agrs = agrs[1].split(',');
-							handler = handler.replace('/\(.*\)/','');  
-						}else{
-							agrs = [];
+				for(var i=0;i<node.children.length;i++){
+					var cnode = node.children[i];
+					if(cnode.children.length){
+						this.compile(cnode);
+					}
+					if(cnode.hasAttribute('v-click')){
+						var handler = cnode.getAttribute('v-click');
+						var args = /\((.*)\)/.exec(handler);
+                        handler = handler.replace(/\(.*\)/,'');
+						console.log(handler);
+						if(this.$methods.hasOwnProperty(handler)){
+							if(args){
+                                args = args[1].split(',');
+							}else{
+                                args = [];
+							}
+							console.log(this.$methods[handler]);
+							cnode.onclick = this.$methods[handler].bind(this.$data,...args);
 						}
-						cnode.onclick = this.$methods[handler];
 					}
-				}
 
-				if(cnode.hasAttribute('v-model') && (cnode.tagName == 'INPUT' || cnode.tagName == 'TEXTAREA')){
-					var model = cnode.getAttribute('v-model');
-					if(this.$data.hasOwnProperty(model)){
-						cnode.oninput = (function(cnode){
-							return function(){
-								console.log('oninput:'+cnode.value,cnode)
-								_this.$data[model] = cnode.value;
-							};
-						})(cnode);
+					if(cnode.hasAttribute('v-model') && (cnode.tagName == 'INPUT' || cnode.tagName == 'TEXTAREA')){
+						var model = cnode.getAttribute('v-model');
+						if(this.$data.hasOwnProperty(model)){
+							cnode.oninput = (function(cnode){
+								return function(){
+									console.log('oninput:'+cnode.value,cnode)
+									_this.$data[model] = cnode.value;
+								};
+							})(cnode);
+						}
 					}
-				}
 
-				if(cnode.hasAttribute('v-bind')){
-					var bind = cnode.getAttribute('v-bind');
-					this._blinding[bind] = {};
-					this._blinding[bind]._directives = [];
-					if(this.$data.hasOwnProperty(bind)){
-						this._blinding[bind]._directives.push(new Directive(
-							'text',
-							cnode,
-							this,
-							bind,
-							'innerHTML'
-						));
+					if(cnode.hasAttribute('v-bind')){
+						var bind = cnode.getAttribute('v-bind');
+						this._blinding[bind] = {};
+						this._blinding[bind]._directives = [];
+						if(this.$data.hasOwnProperty(bind)){
+							this._blinding[bind]._directives.push(new Directive(
+								'text',
+								cnode,
+								this,
+								bind,
+								'innerHTML'
+							));
+						}
+						
 					}
-					
 				}
+			},
+			parseData(data){
+				for(var key in data){
+					if(data.hasOwnProperty(key)){
+						var val = data[key];
+						if(typeof val === 'object'){
+							this.parseData(val);
+						}
+						this.convert(key,val);
+					}
+				}
+			},
+			parseFun(){
+				for(var funName in this.$methods){
+					this.$methods[funName].bind(this.$data);
+				}
+			},
+			convert(key,val){
+				var _this = this;
+				Object.defineProperty(this.$data,key,{
+					enumerable:true,
+					configurable:true,
+					get:function(){
+						console.log(`${key}的值被读取`,val);
+						return val;
+					},
+					set:function(newVal){
+						console.log(`${key}的值已经改为${newVal}`);
+						if(newVal !== val){
+							val = newVal;
+							for(var dir in _this._blinding[key]._directives){
+								console.log(_this._blinding[key]._directives[dir])
+								_this._blinding[key]._directives[dir].update();
+							}
+						}
+					}
+				});
 			}
-		};
-		function Directive(name,el,vm,exp,attr){
-			this.name = name;
-			this.el = el;
-			this.vm =  vm;
-			this.exp = exp;
-			this.attr = attr;
-			this.update();
+		});
+		class Directive{
+			constructor(name,el,vm,exp,attr){
+				this.name = name;
+				this.el = el;
+				this.vm =  vm;
+				this.exp = exp;
+				this.attr = attr;
+				this.update();
+			}
+			
 		}
-		Directive.prototype.update = function(){
-			console.log('update',this.el,this.attr,this.vm.$data);
-			this.el[this.attr] = this.vm.$data[this.exp];
-		};
-		DataBind.prototype._parseData = function(data){
-			for(var key in data){
-				if(data.hasOwnProperty(key)){
-					var val = data[key];
-					if(typeof val === 'object'){
-						this._parseData(val);
-					}
-					this._convert(key,val);
-				}
+		Object.assign(Directive.prototype,{
+			update(){
+				console.log('update',this.el,this.attr,this.vm.$data);
+				this.el[this.attr] = this.vm.$data[this.exp];
 			}
-		};
-		DataBind.prototype._parseFun = function(){
-			var _this = this;
-			for(var fun in this.$methods){
-				this.$methods[fun] = (function(fun){
-					return function(){
-						_this.$methods[fun].apply(_this.$data);
-					}
-				})(fun);
-			}
-		};
-		DataBind.prototype._convert = function(key,val){
-			var _this = this;
-			Object.defineProperty(this.$data,key,{
-				enumerable:true,
-				configurable:true,
-				get:function(){
-					console.log(`${key}的值被读取`,val);
-					return val;
-				},
-				set:function(newVal){
-					console.log(`${key}的值已经改为${newVal}`);
-					if(newVal !== val){
-						//console.log(_this._blinding);
-						val = newVal;
-						for(var dir in _this._blinding[key]._directives){
-							console.log(_this._blinding[key]._directives[dir])
-							_this._blinding[key]._directives[dir].update();
-						}
-					}
-				}
-			});
-		};
+		})
 		new DataBind({
 			el:'#app',
 			data:{
 				name:''
+			},
+			methods:{
+				handleClick:function(){
+					console.log('点击事件测试name:',this.name);
+				}
 			}
 		});
 	</script>
