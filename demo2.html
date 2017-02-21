@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>双向数据绑定--订阅-发布者模式</title>
+</head>
+<body>
+	<input type="text" data-bind-123="name"/>
+	<p data-bind-123></p>
+</body>
+<script>
+	/**
+	 * 双线数据绑定--订阅发布者模式实现
+	 */
+	function addEvent(el,eventName,handle){
+		if(el.addEventListener){//w3c
+			el.addEventListener(eventName,handle,false);
+		}else if(el.attachEvent){//ie
+			el.attachEvent('on'+eventName,handle);
+		}else{
+			el['on'+eventName] = handle;
+		}
+	}
+	class DataBind {
+		constructor(id) {
+			this.id = id;
+			var pubSub = {
+				callbacks:{},
+				on:(msg,cb) => {
+					this.callbacks[msg] = this.callbacks[msg] || [];
+					this.callbacks[msg].push(cb);
+				},
+				publish:(msg) => {
+					this.callbacks[msg].forEach((cb) => {
+						cb.apply(null,argumments);//??
+					});
+				}
+			};
+			var message = this.id+':change',
+			dataAttr = 'data-bind-'+this.id;
+			var handleChange = (evt) => {
+				var evt = evt || window.event,
+				target = evt.target || evt.srcElement,
+				prop = target.getAttribute(dataAttr);
+
+				if(prop){
+					pubSub.publish('message',prop,target.value);
+				}
+			};
+			addEvent(document,'change',handleChange);
+			pubSub.on(message,(evt,prop,val) => {
+				var els = document.querySlectorAll('['+dataAttr+'='+prop+']'),
+				typeArr = ['TEXTAREA','INPUT','SELECTOR'];
+				for(var i=0,l=els.length;i<l;i++){
+					if(typeArr.includes(els[i].tagName)){
+						els[i].value = val;
+					}else{
+						els[i].innerHTML = val;
+					}
+				}
+			});
+		}
+	}
+	class Model {
+		constructor(id){
+			this.id = id;
+			this.attrs = {};
+			this.dataBind = new DataBind(this.id);
+		}
+		set(attrName,val){
+			this.attrs[attrName] = val;
+			this.dataBind.publish(this.id+':change',attrName,val);
+		}
+	}
+	var user = new Model(123);
+	user.set('name',liubeijing);
+</script>
+</html>

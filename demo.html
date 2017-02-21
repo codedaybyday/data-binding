@@ -11,6 +11,9 @@
 		<button v-click="handleClick">点击</button>
 	</div>
 	<script>
+		/**
+		 * 双向数据绑定，数据劫持方式实现
+		 */
 		class DataBind{
 			constructor(options){
 				this.$el = document.querySelector(options.el);
@@ -35,44 +38,41 @@
 						var handler = cnode.getAttribute('v-click');
 						var args = /\((.*)\)/.exec(handler);
                         handler = handler.replace(/\(.*\)/,'');
-						console.log(handler);
+						console.log(handler,args);
 						if(this.$methods.hasOwnProperty(handler)){
 							if(args){
                                 args = args[1].split(',');
 							}else{
                                 args = [];
 							}
-							console.log(this.$methods[handler]);
 							cnode.onclick = this.$methods[handler].bind(this.$data,...args);
 						}
 					}
-
 					if(cnode.hasAttribute('v-model') && (cnode.tagName == 'INPUT' || cnode.tagName == 'TEXTAREA')){
-						var model = cnode.getAttribute('v-model');
-						if(this.$data.hasOwnProperty(model)){
+						var modelName = cnode.getAttribute('v-model');
+						if(this.$data.hasOwnProperty(modelName)){
 							cnode.oninput = (function(cnode){
 								return function(){
 									console.log('oninput:'+cnode.value,cnode)
-									_this.$data[model] = cnode.value;
+									_this.$data[modelName] = cnode.value;
 								};
 							})(cnode);
 						}
 					}
-
 					if(cnode.hasAttribute('v-bind')){
-						var bind = cnode.getAttribute('v-bind');
-						this._blinding[bind] = {};
-						this._blinding[bind]._directives = [];
-						if(this.$data.hasOwnProperty(bind)){
-							this._blinding[bind]._directives.push(new Directive(
+						var attrVal = cnode.getAttribute('v-bind');
+						this._blinding[attrVal] = {
+                            _directives:[]
+						};
+						if(this.$data.hasOwnProperty(attrVal)){
+							this._blinding[attrVal]._directives.push(new Directive(
 								'text',
 								cnode,
 								this,
-								bind,
+                                attrVal,
 								'innerHTML'
 							));
-						}
-						
+						}	
 					}
 				}
 			},
@@ -122,8 +122,7 @@
 				this.exp = exp;
 				this.attr = attr;
 				this.update();
-			}
-			
+			}	
 		}
 		Object.assign(Directive.prototype,{
 			update(){
@@ -131,7 +130,7 @@
 				this.el[this.attr] = this.vm.$data[this.exp];
 			}
 		})
-		new DataBind({
+		new  ({
 			el:'#app',
 			data:{
 				name:''
