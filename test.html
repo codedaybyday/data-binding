@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Document</title>
+	<script>
+		var pubSub = {
+			callbacks:{},
+			on:(msg,cb) => {
+				this.callbacks[msg] = this.callbacks[msg] || [];
+				this.callbacks[msg].push(cb);
+			},
+			publish:(msg) => {
+				this.callbacks[msg].forEach((cb) => {
+					cb.apply(null,argumments);//??
+				});
+			}
+		};
+	</script>
+</head>
+<body>
+	
+</body>
+</html>

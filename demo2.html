@@ -24,15 +24,16 @@
 	class DataBind {
 		constructor(id) {
 			this.id = id;
-			var pubSub = {
+			this.pubSub = {
 				callbacks:{},
-				on:(msg,cb) => {
+				on:function(msg,cb){
 					this.callbacks[msg] = this.callbacks[msg] || [];
 					this.callbacks[msg].push(cb);
 				},
-				publish:(msg) => {
+				publish:function(msg){
+					console.log(this.callbacks[msg]);
 					this.callbacks[msg].forEach((cb) => {
-						cb.apply(null,argumments);//??
+						cb.apply(null,arguments);//??
 					});
 				}
 			};
@@ -42,15 +43,16 @@
 				var evt = evt || window.event,
 				target = evt.target || evt.srcElement,
 				prop = target.getAttribute(dataAttr);
-
+				console.log('input');
 				if(prop){
-					pubSub.publish('message',prop,target.value);
+					this.pubSub.publish(message,prop,target.value);
 				}
 			};
-			addEvent(document,'change',handleChange);
-			pubSub.on(message,(evt,prop,val) => {
-				var els = document.querySlectorAll('['+dataAttr+'='+prop+']'),
+			addEvent(document,'input',handleChange);
+			this.pubSub.on(message,(evt,prop,val) => {
+				var els = document.querySelectorAll('['+dataAttr+']'),
 				typeArr = ['TEXTAREA','INPUT','SELECTOR'];
+				console.log(els);
 				for(var i=0,l=els.length;i<l;i++){
 					if(typeArr.includes(els[i].tagName)){
 						els[i].value = val;
@@ -69,10 +71,10 @@
 		}
 		set(attrName,val){
 			this.attrs[attrName] = val;
-			this.dataBind.publish(this.id+':change',attrName,val);
+			this.dataBind.pubSub.publish(this.id+':change',attrName,val);
 		}
 	}
 	var user = new Model(123);
-	user.set('name',liubeijing);
+	user.set('name','liubeijing');
 </script>
 </html>
